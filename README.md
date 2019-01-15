@@ -29,9 +29,9 @@ Executing a crop rows generation task
 
 ## Developers Documentation
 
-[Crop Rows Generator - CLI](croprows-cli/docs/_build/html/index.html)
+[Crop Rows Generator - CLI](http://54.186.237.120/croprowsgenerator/crg_cli/html/index.html)
 
-[Crop Rows Generator - QGIS API](croprows-qgis-plugin/docs/_build/html/index.html)
+[Crop Rows Generator - QGIS API](http://54.186.237.120/croprowsgenerator/crg_plugin/html/index.html))
 
 
 ## License
