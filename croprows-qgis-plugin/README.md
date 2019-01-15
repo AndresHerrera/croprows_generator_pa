@@ -11,7 +11,7 @@
 
 ## Installation
 
- 1. Download le **croprows-qgis-plugin-latest.zip** available on the Crop Rows Generator
+1. Download file **croprows-qgis-plugin-latest.zip** available on the Crop Rows Generator
 repository.
 2. Extract **croprows-qgis-plugin-latest.zip** into the **.qgis2/python/plugins** folder
 located in home directory.

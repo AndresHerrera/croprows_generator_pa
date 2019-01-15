@@ -28,7 +28,7 @@ sudo docker load -i croprowscontainer.tar
 
 ## Running stand alone Crop Rows processing
 
-* ./run_croprows-cli.sh testcontrolled1.xml
+* ./run_croprows-cli.sh croprows-projectfile.xml
 
 ## Running a server API
 
@@ -38,13 +38,13 @@ sudo docker load -i croprowscontainer.tar
 
 ### Executing a crop rows generation task
 
-* http://localhost:2767/croprows/testcontrolled1.xml
+* http://server:2767/croprows/croprows-projectfile.xml
 
 ## Developers Documentation
 
 - [Crop Rows Generator - CLI](http://54.186.237.120/croprowsgenerator/crg_cli/html/index.html)
 
-- [Crop Rows Generator - QGIS API](http://54.186.237.120/croprowsgenerator/crg_plugin/html/index.html))
+- [Crop Rows Generator - QGIS API](http://54.186.237.120/croprowsgenerator/crg_plugin/html/index.html)
 
 ## Performance Requirements
 

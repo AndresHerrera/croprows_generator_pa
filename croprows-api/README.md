@@ -11,10 +11,9 @@
 
 ## Installation
 
- 1. installation
- - sudo apt-get install python-setuptools python-pip python-dev
-   build-essential
- - sudo pip install --upgrade pip
+1. Python installation
+- sudo apt-get install python-setuptools python-pip python-dev build-essential
+- sudo pip install --upgrade pip
 
 2. Flask microframework installation
 - sudo pip install Flask
@@ -25,20 +24,21 @@
 
 ## API
 
+### Crop Rows API Status (JSON Response)
 - http://server:2767/imlive - GET
-Crop Rows API Status (JSON Response).
 
+### OS information (JSON Response)
 - http://server:2767/os - GET
-OS information (JSON Response).
 
-- http://server:2767/croprows/croprows-projectle.xml - GET
-Execute Crop Rows processing task for croprows-projectfile.xml
+### Execute Crop Rows processing task for croprows-projectfile.xml
+- http://server:2767/croprows/croprows-projectfile.xml - GET
 
+### Upload orthomosaic file to the server
 - http://server:2767/crimageuploader/ - POST
-Upload orthomosaic file to the server.
 
+### Upload vector mask file to the server
 - http://server:2767/crmaskuploader/ - POST
-Upload vector mask file to the server.
+
 
 ## License
 
