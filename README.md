@@ -48,7 +48,7 @@ sudo docker load -i croprowscontainer.tar
 
 ## Performance Requirements
 
-CRG requires a system with at least a 2.0 Megahertz CPU and 2 Gigabytes of RAM. However, these requirements can support efectively processing small crop eld areas. Performance depends on the orthomosaic size and as a result, the system requirements for bigger orthomosaics are more demanding.
+CRG requires a system with at least a 2.0 Megahertz CPU and 2 Gigabytes of RAM. However, these requirements can support efectively processing small crop field areas. Performance depends on the orthomosaic size and as a result, the system requirements for bigger orthomosaics are more demanding.
 
 ## License
 
