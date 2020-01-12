@@ -2,11 +2,11 @@
 
 **croprows_generator_pa** is the source code of **Crop Rows Generator v1.0 (CRG)** .
 
-**Crop Rows Generator (CRG) v1.0** is a tool that specialized user can use to generate georeferenced lines from high resolution images obtained by a drone. (CRG) uses an orthomosaic and a eld delimitation vector mask as an input. After processing CRG obtains at the output a set of les that can be used to be integrated into geographic information systems or to be provided as an input for an auto-guidance machinery. (CRG) is based on computer vision techniques and under a high performance computing approach is capable of processing high resolution and large images and on these images detect, generate and mapping a crop rows in sugarcane elds in an easy and accurate way,with a few clicks. CRG has a client interface (**CRG-QGIS Plugin**) integrated as a plugin into the geographic information system software (QGIS Desktop). A processing core that handles the most complex tasks and is accessed by a command line interface (**CRG-CLI** ). A REST API (CRG-API ) which exposes resources through on HTTP methods.
+**Crop Rows Generator (CRG) v1.0** is a tool that specialized user can use to generate georeferenced lines from high resolution images obtained by a drone. (CRG) uses an orthomosaic and a Field delimitation vector mask as an input. After processing CRG obtains at the output a set of Files that can be used to be integrated into geographic information systems or to be provided as an input for an auto-guidance machinery. (CRG) is based on computer vision techniques and under a high performance computing approach is capable of processing high resolution and large images and on these images detect, generate and mapping a crop rows in sugarcane Fields in an easy and accurate way,with a few clicks. CRG has a client interface (**CRG-QGIS Plugin**) integrated as a plugin into the geographic information system software (QGIS Desktop). A processing core that handles the most complex tasks and is accessed by a command line interface (**CRG-CLI** ). A REST API (CRG-API ) which exposes resources through on HTTP methods.
 
 ## Product Perspective
 
-CRG was developed for everyone who is interested in generate geospatial crop rows in sugarcane elds using high resolution imagery captured by a Drone. It is an open source project. It was developed to run on Windows and Linux O.S.
+CRG was developed for everyone who is interested in generate geospatial crop rows in sugarcane Felds using high resolution imagery captured by a Drone. It is an open source project. It was developed to run on Windows and Linux O.S.
 
 ## Assumptions and Dependencies
 
@@ -20,6 +20,19 @@ http://54.186.237.120/croprowsgenerator/
 https://github.com/AndresHerrera/croprows_generator_pa
 - Crop Rows Generator (CRG) Youtube Playlist:
 https://www.youtube.com/playlist?list=PL5Uf6W3KZ2JBKwHgeifJJUgeGkOZviSIK
+
+## Plugin for QGIS 2.x
+
+[PACropRowsv1_QGIS2_x.zip](croprows-qgis-plugin/PACropRowsv1_QGIS2_x.zip)
+
+## Plugin for QGIS 3.x
+
+[PACropRowsv1_QGIS3_x.zip](croprows-qgis-plugin/PACropRowsv1_QGIS3_x.zip)
+
+## Screenshots 
+![Main window](screenshot1.png)
+
+![Config window](screenshot2.png)
 
 ## Installation
 

@@ -217,7 +217,7 @@
           <enum>Qt::RichText</enum>
          </property>
          <property name="pixmap">
-          <pixmap>:/pat1/img/pat1.png</pixmap>
+          <pixmap>:/plugins/PACropRows/img/pat1.png</pixmap>
          </property>
          <property name="scaledContents">
           <bool>true</bool>
@@ -259,7 +259,7 @@
           <enum>Qt::RichText</enum>
          </property>
          <property name="pixmap">
-          <pixmap>:/pat2/img/pat2.png</pixmap>
+          <pixmap>:/plugins/PACropRows/img/pat2.png</pixmap>
          </property>
          <property name="scaledContents">
           <bool>true</bool>
@@ -298,7 +298,7 @@
           <enum>Qt::RichText</enum>
          </property>
          <property name="pixmap">
-          <pixmap>:/pat3/img/pat3.png</pixmap>
+          <pixmap>:/plugins/PACropRows/img/pat3.png</pixmap>
          </property>
          <property name="scaledContents">
           <bool>true</bool>
@@ -337,7 +337,7 @@
           <enum>Qt::RichText</enum>
          </property>
          <property name="pixmap">
-          <pixmap>:/pat4/img/pat4.png</pixmap>
+          <pixmap>:/plugins/PACropRows/img/pat4.png</pixmap>
          </property>
          <property name="scaledContents">
           <bool>true</bool>
@@ -677,7 +677,7 @@
        <enum>Qt::RichText</enum>
       </property>
       <property name="pixmap">
-       <pixmap>:/logouv/img/uvlogo.png</pixmap>
+       <pixmap>:/plugins/PACropRows/img/uvlogo.png</pixmap>
       </property>
       <property name="scaledContents">
        <bool>true</bool>

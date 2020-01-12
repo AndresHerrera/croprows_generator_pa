@@ -6,8 +6,9 @@
  This plugin generates crop rows lines from drone aerial images for sugracane fields
                               -------------------
         begin                : 2018-02-22
+        updated              : 2020-01-12
         git sha              : $Format:%H$
-        copyright            : (C) 2018 by Andres Herrera - Universidad del Valle
+        copyright            : (C) 2018 - 2020 by Andres Herrera - Universidad del Valle
         email                : fabio.herrera@correounivalle.edu.co
  ***************************************************************************/
 
@@ -28,21 +29,30 @@ import shutil
 import random
 import time
 import subprocess
-from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
-from PyQt4.QtGui import *
-from PyQt4.QtGui import QMessageBox, QFileDialog
-from qgis.core import *
-from qgis.core import QgsProject
-from qgis.gui import *
-from PyQt4.QtCore import QUrl
+
+from PyQt5.QtCore import *
+from PyQt5.QtWidgets import QApplication
+
+from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication,qVersion,QUrl
+from qgis.PyQt.QtGui import QIcon,QValidator
+from PyQt5.QtGui import  QDoubleValidator
+from qgis.PyQt.QtWidgets import QAction, QMessageBox, QFileDialog, QTableWidgetItem, QHeaderView, QAbstractItemView, QProgressBar, QProgressDialog
+from qgis._core import Qgis, QgsMapLayer, QgsRasterLayer, QgsVectorLayer, QgsProject,QgsMessageLog,QgsWkbTypes,QgsCoordinateReferenceSystem
 from qgis.utils import reloadPlugin
 from xml.etree.ElementTree import ElementTree
 from xml.etree.ElementTree import Element
 from xml.etree.ElementTree import SubElement
 import xml.etree.ElementTree as cET
 import xml.etree.cElementTree as ET
-import urlparse
-import urllib2
+#import urlparse
+import urllib
+import urllib.error
+from urllib.request import urlopen,urlretrieve
+from urllib.parse import urljoin
+
+
+    
+#import urllib2
 import socket
 #from qgis.core import QgsMapLayer, QgsMapLayerRegistry
 #from qgis.gui import QgsMapLayerComboBox, QgsMapLayerProxyModel, QgsFieldComboBox
@@ -50,7 +60,7 @@ import socket
 from .resources import *
 #import resourcespat
 # Import the code for the dialog
-from crop_rows_dialog import PACropRowsDialog
+from .crop_rows_dialog import PACropRowsDialog
 from functools import partial
 
 import sys
@@ -86,9 +96,9 @@ class PACropRows:
         """
         nowTime = time.strftime("%c")
         ## date and time representation
-        QgsMessageLog.logMessage('========================================================', tag="CropRows Generator", level=QgsMessageLog.INFO)
-        QgsMessageLog.logMessage('Crop Rows Plugin Starts '+time.strftime('%c'), tag="CropRows Generator", level=QgsMessageLog.INFO)
-        QgsMessageLog.logMessage('========================================================', tag="CropRows Generator", level=QgsMessageLog.INFO)
+        QgsMessageLog.logMessage('========================================================')
+        QgsMessageLog.logMessage('Crop Rows Plugin Starts '+time.strftime('%c'))
+        QgsMessageLog.logMessage('========================================================')
 
         # Save reference to the QGIS interface
         self.iface = iface
@@ -120,7 +130,10 @@ class PACropRows:
         #False clip by mask
         self.flagNoCropRaster = False
         
-        QgsMessageLog.logMessage('Crop Rows Generator v1.0 - Loaded', tag="CropRows Generator", level=QgsMessageLog.INFO)
+        # Must be set in initGui() to survive plugin reloads
+        self.first_start = None
+        
+        QgsMessageLog.logMessage('Crop Rows Generator v1.0 - Loaded')
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -227,7 +240,10 @@ class PACropRows:
             callback=self.run,
             parent=self.iface.mainWindow())
         
+        #self.run_2()
         #self.dlg.textEdit.clear()
+        # will be set False in run()
+        self.first_start = True
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
@@ -246,11 +262,13 @@ class PACropRows:
     
     def url_ok(self,url,timeout=5):
         try:
-            return urllib2.urlopen(url,timeout=timeout).getcode() == 200
-        except urllib2.URLError as e:
+            #return urllib2.urlopen(url,timeout=timeout).getcode() == 200
+            return urllib.request.urlopen(url,timeout=timeout).getcode() == 200
+        #except urllib2.URLError as e:
+        except urllib.error.URLError as e:
             return False
         except socket.timeout as e:
-            QgsMessageLog.logMessage('Socket time out !', tag="CropRows Generator", level=QgsMessageLog.INFO)
+            QgsMessageLog.logMessage('Socket time out !')
             #print(False)
     
     def readConfigFileFromXML(self):
@@ -263,13 +281,13 @@ class PACropRows:
         #self.dlg.textEdit.setText('')
         self.flagClipTaskDone=0
         
-        QgsMessageLog.logMessage('Crop Rows - Plugin Path: '+(os.path.dirname(os.path.abspath(__file__))), tag="CropRows Generator", level=QgsMessageLog.INFO)
-        QgsMessageLog.logMessage('===========================================', tag="CropRows Generator", level=QgsMessageLog.INFO)
-        QgsMessageLog.logMessage('Reading configuration file', tag="CropRows Generator", level=QgsMessageLog.INFO)
+        QgsMessageLog.logMessage('Crop Rows - Plugin Path: '+(os.path.dirname(os.path.abspath(__file__))))
+        QgsMessageLog.logMessage('===========================================')
+        QgsMessageLog.logMessage('Reading configuration file')
 
         xmlConfigFile = os.path.join((os.path.dirname(os.path.abspath(__file__))), 'config.xml' )
 
-        QgsMessageLog.logMessage('Config file: '+xmlConfigFile, tag="CropRows Generator", level=QgsMessageLog.INFO)
+        QgsMessageLog.logMessage('Config file: '+xmlConfigFile)
         
         source = open(xmlConfigFile,'rb')
         tree = ET.parse(source)
@@ -285,17 +303,17 @@ class PACropRows:
             crofValue = cfg.find('output_file').text
             aclipValue = cfg.find('alwaysclip').text
             self.dlg.inputProcessingApiURL.setText(str(pcpValue))
-            QgsMessageLog.logMessage('Setting Processing Core Path: '+str(pcpValue) , tag="CropRows Generator", level=QgsMessageLog.INFO)
+            QgsMessageLog.logMessage('Setting Processing Core Path: '+str(pcpValue))
             self.dlg.webViewApiStatus.load(QUrl(pcpValue))
             self.dlg.inputGdalOsgeoPath.setText(str(opValue))
-            QgsMessageLog.logMessage('Setting OSGEO Path: '+str(opValue) , tag="CropRows Generator", level=QgsMessageLog.INFO)
+            QgsMessageLog.logMessage('Setting OSGEO Path: '+str(opValue))
             self.dlg.inputSharedFolderPath.setText(str(tpValue))
-            QgsMessageLog.logMessage('Setting Temporal Path: '+str(tpValue) , tag="CropRows Generator", level=QgsMessageLog.INFO)
-            QgsMessageLog.logMessage('Setting output file: '+str(crofValue) , tag="CropRows Generator", level=QgsMessageLog.INFO)
-            QgsMessageLog.logMessage('Option Load clipped: '+str(clValue) , tag="CropRows Generator", level=QgsMessageLog.INFO)
-            QgsMessageLog.logMessage('Option Load results: '+str(lrValue) , tag="CropRows Generator", level=QgsMessageLog.INFO)
-            QgsMessageLog.logMessage('Option Load alwaysclip: '+str(aclipValue) , tag="CropRows Generator", level=QgsMessageLog.INFO)
-            QgsMessageLog.logMessage('===========================================', tag="CropRows Generator", level=QgsMessageLog.INFO)
+            QgsMessageLog.logMessage('Setting Temporal Path: '+str(tpValue))
+            QgsMessageLog.logMessage('Setting output file: '+str(crofValue))
+            QgsMessageLog.logMessage('Option Load clipped: '+str(clValue))
+            QgsMessageLog.logMessage('Option Load results: '+str(lrValue))
+            QgsMessageLog.logMessage('Option Load alwaysclip: '+str(aclipValue))
+            QgsMessageLog.logMessage('===========================================')
             #Checkboxes
             if str(clValue).lower()=='true':
                 self.dlg.checkLoadClipped.setCheckState(True)
@@ -320,13 +338,13 @@ class PACropRows:
         self.dlg.radioButtonSeed3.setAutoExclusive(True)
         self.dlg.radioButtonSeed4.setAutoExclusive(True)
         self.dlg.labelOutputSeed.setText('')
-        QgsMessageLog.logMessage('Seed status reloaded', tag="CropRows Generator", level=QgsMessageLog.INFO)
+        QgsMessageLog.logMessage('Seed status reloaded')
         
         source.close()
         del source
         flagApiServerIsRunning = self.url_ok(pcpValue+"/imlive")
         #check is api server is running
-        QgsMessageLog.logMessage('API Server running: '+str(flagApiServerIsRunning), tag="CropRows Generator", level=QgsMessageLog.INFO)
+        QgsMessageLog.logMessage('API Server running: '+str(flagApiServerIsRunning))
 
         if flagApiServerIsRunning==False:
             #hide api tab
@@ -338,7 +356,7 @@ class PACropRows:
 
     def writeXMLFile(self,filenameXML,arrayXMLData):
         """Write XML File."""
-        QgsMessageLog.logMessage('writing xml file: '+ filenameXML, tag="CropRows Generator", level=QgsMessageLog.INFO)
+        QgsMessageLog.logMessage('writing xml file: '+ filenameXML)
         root = cET.Element('croprows')
         filenameSubElement = cET.SubElement(root,'filename')
         filenameSubElement.set('name',arrayXMLData[1])
@@ -382,19 +400,19 @@ class PACropRows:
         fileNameResponse = QFileDialog.getSaveFileName(w, 'Save Crop Rows Result File', '/temporal/croprows_output_file.shp',"ESRI Shapefile (*.shp)")
         if fileNameResponse != '':
             #self.dlg.outputfilename.setText(str(filename))
-            QgsMessageLog.logMessage('Set output crop rows filename: '+ str(fileNameResponse), tag="CropRows Generator", level=QgsMessageLog.INFO)
+            QgsMessageLog.logMessage('Set output crop rows filename: '+ str(fileNameResponse))
         else:
-            QgsMessageLog.logMessage('You must be set a croprows filename', tag="CropRows Generator", level=QgsMessageLog.INFO)
+            QgsMessageLog.logMessage('You must be set a croprows filename')
             QMessageBox.critical(None,'Error!',"You must be set a croprows filename!", QMessageBox.Ok)
 
     def executeCropRowsClipProcessing(self):
         """Execute Crop Rows STEP 1"""
-        QgsMessageLog.logMessage('Excecute Task1: Clip Raster Mosaic by Vector Mask', tag="CropRows Generator", level=QgsMessageLog.INFO)
+        QgsMessageLog.logMessage('Excecute Task1: Clip Raster Mosaic by Vector Mask')
         strMosaicRasterFileSelected = self.dlg.comboBoxInputRaster.currentText()
         strMaskVectorFileSelected = self.dlg.comboBoxInputVector.currentText()
         
         seedValue=0
-        QgsMessageLog.logMessage('Get Seed from user selection', tag="CropRows Generator", level=QgsMessageLog.INFO)
+        QgsMessageLog.logMessage('Get Seed from user selection')
         if self.dlg.radioButtonSeed1.isChecked() == True:
             seedValue=1
         elif self.dlg.radioButtonSeed2.isChecked() == True:
@@ -405,11 +423,11 @@ class PACropRows:
             seedValue=4
         
         if(seedValue==0):
-            QgsMessageLog.logMessage('You must be set a seed value !', tag="CropRows Generator", level=QgsMessageLog.INFO)
+            QgsMessageLog.logMessage('You must be set a seed value !')
             QMessageBox.critical(None,'Error!',"You must be set a <b>seed</b> value !", QMessageBox.Ok)
             pass
         else:
-            QgsMessageLog.logMessage('Seed value: '+str(seedValue), tag="CropRows Generator", level=QgsMessageLog.INFO)
+            QgsMessageLog.logMessage('Seed value: '+str(seedValue))
 
         #Start Crop Rows processing
         if strMosaicRasterFileSelected != '' and strMaskVectorFileSelected != '' and seedValue > 0 and self.flagClipTaskDone==0:
@@ -426,10 +444,12 @@ class PACropRows:
                 self.dlg.statusBarProcessing.setGeometry(10, 281, 631, 31)
 
                 self.dlg.statusBarProcessing.setValue(1)
-                QgsMessageLog.logMessage('Processing Raster ', tag="CropRows Generator", level=QgsMessageLog.INFO)
-                urlSourceRasterMosaic = QgsMapLayerRegistry.instance().mapLayersByName(strMosaicRasterFileSelected)[0].dataProvider().dataSourceUri()
+                QgsMessageLog.logMessage('Processing Raster ')
+                #urlSourceRasterMosaic = QgsMapLayerRegistry.instance().mapLayersByName(strMosaicRasterFileSelected)[0].dataProvider().dataSourceUri()
+                urlSourceRasterMosaic = QgsProject.instance().mapLayersByName(strMosaicRasterFileSelected)[0].dataProvider().dataSourceUri()
                 self.dlg.statusBarProcessing.setValue(5)
-                urlSourceVectorMask = QgsMapLayerRegistry.instance().mapLayersByName(strMaskVectorFileSelected)[0].dataProvider().dataSourceUri()
+                #urlSourceVectorMask = QgsMapLayerRegistry.instance().mapLayersByName(strMaskVectorFileSelected)[0].dataProvider().dataSourceUri()
+                urlSourceVectorMask = QgsProject.instance().mapLayersByName(strMaskVectorFileSelected)[0].dataProvider().dataSourceUri()
                 self.dlg.statusBarProcessing.setValue(10)
                 urlSourceVectorMaskSplit = urlSourceVectorMask.split("|")[0]
                 self.dlg.statusBarProcessing.setValue(20)
@@ -439,11 +459,11 @@ class PACropRows:
                 pixelSizeY = rasterLyr.rasterUnitsPerPixelY()
                 self.dlg.statusBarProcessing.setValue(25)
      
-                QgsMessageLog.logMessage(str(urlSourceRasterMosaic), tag="CropRows Generator", level=QgsMessageLog.INFO)
-                QgsMessageLog.logMessage(str(urlSourceVectorMaskSplit), tag="CropRows Generator", level=QgsMessageLog.INFO)
-                QgsMessageLog.logMessage('GDAL Clipper', tag="CropRows Generator", level=QgsMessageLog.INFO)
-                QgsMessageLog.logMessage(str(pixelSizeX), tag="CropRows Generator", level=QgsMessageLog.INFO)
-                QgsMessageLog.logMessage(str(pixelSizeY), tag="CropRows Generator", level=QgsMessageLog.INFO)
+                QgsMessageLog.logMessage(str(urlSourceRasterMosaic))
+                QgsMessageLog.logMessage(str(urlSourceVectorMaskSplit))
+                QgsMessageLog.logMessage('GDAL Clipper')
+                QgsMessageLog.logMessage(str(pixelSizeX))
+                QgsMessageLog.logMessage(str(pixelSizeY))
 
                 gdalOSGeoPath = self.dlg.inputGdalOsgeoPath.text().replace("/", "\\")
                 #temporalPath = self.dlg.inputSharedFolderPath.text().replace("/", "\\")
@@ -458,14 +478,14 @@ class PACropRows:
                 self.dlg.statusBarProcessing.setValue(35)
 
                 if self.flagNoCropRaster == True:
-                    QgsMessageLog.logMessage('No Crop option selected - Copy file directly', tag="CropRows Generator", level=QgsMessageLog.INFO)
+                    QgsMessageLog.logMessage('No Crop option selected - Copy file directly')
                     shutil.copyfile(urlSourceRasterMosaic, os.path.join(ouputclipfile_path[:-4]+'.tif' ) )
                     self.dlg.statusBarProcessing.setValue(40)
                 else:
-                    QgsMessageLog.logMessage('Crop raster by mask option selected - Cliping using GDAL', tag="CropRows Generator", level=QgsMessageLog.INFO)
+                    QgsMessageLog.logMessage('Crop raster by mask option selected - Cliping using GDAL')
                     #print('C:/Program Files/QGIS 2.14/bin/gdalwarp')
                     gdalWarpSubProcessCommand = '"'+gdalOSGeoPath+"\\"+'gdalwarp.exe" -dstnodata -9999 -q -cutline '+urlSourceVectorMaskSplit.replace("/", "\\")+' -crop_to_cutline -tr '+str(pixelSizeX)+' '+str(pixelSizeX)+' -of GTiff '+urlSourceRasterMosaic.replace("/", "\\")+' ' + ouputclipfile_path
-                    QgsMessageLog.logMessage(str(gdalWarpSubProcessCommand), tag="CropRows Generator", level=QgsMessageLog.INFO)
+                    QgsMessageLog.logMessage(str(gdalWarpSubProcessCommand))
                     self.dlg.statusBarProcessing.setValue(40)
                     p = subprocess.Popen(gdalWarpSubProcessCommand, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                     for line in p.stdout.readlines():
@@ -473,7 +493,7 @@ class PACropRows:
                         retval = p.wait()
                 
                 self.dlg.statusBarProcessing.setValue(50)
-                QgsMessageLog.logMessage('Clipper process done check result file ' + ouputclipfile_path, tag="CropRows Generator", level=QgsMessageLog.INFO)
+                QgsMessageLog.logMessage('Clipper process done check result file ' + ouputclipfile_path)
                 #Load result file into map environment
                 rasterLayerClipped = QgsRasterLayer(ouputclipfile_path, ouputFilenameRasterClip[:-4])
 
@@ -499,19 +519,20 @@ class PACropRows:
 
                 proj4crs=rasterLayerClipped.crs()
 
-                QgsMessageLog.logMessage(str(proj4crs.srsid()), tag="CropRows Generator", level=QgsMessageLog.INFO)
-                QgsMessageLog.logMessage(str(proj4crs.toProj4()), tag="CropRows Generator", level=QgsMessageLog.INFO)
-                QgsMessageLog.logMessage(str(proj4crs.authid()), tag="CropRows Generator", level=QgsMessageLog.INFO)
-                QgsMessageLog.logMessage(str(proj4crs.description()), tag="CropRows Generator", level=QgsMessageLog.INFO)
-                QgsMessageLog.logMessage(str(proj4crs.ellipsoidAcronym()), tag="CropRows Generator", level=QgsMessageLog.INFO)
-                QgsMessageLog.logMessage(str(proj4crs.findMatchingProj()), tag="CropRows Generator", level=QgsMessageLog.INFO)
-                QgsMessageLog.logMessage(str(proj4crs.postgisSrid()), tag="CropRows Generator", level=QgsMessageLog.INFO)
-                QgsMessageLog.logMessage(str(proj4crs.toWkt()), tag="CropRows Generator", level=QgsMessageLog.INFO)
+                QgsMessageLog.logMessage(str(proj4crs.srsid()))
+                QgsMessageLog.logMessage(str(proj4crs.toProj4()))
+                QgsMessageLog.logMessage(str(proj4crs.authid()))
+                QgsMessageLog.logMessage(str(proj4crs.description()))
+                QgsMessageLog.logMessage(str(proj4crs.ellipsoidAcronym()))
+                QgsMessageLog.logMessage(str(proj4crs.findMatchingProj()))
+                QgsMessageLog.logMessage(str(proj4crs.postgisSrid()))
+                QgsMessageLog.logMessage(str(proj4crs.toWkt()))
 
                 epsgClip = proj4crs.postgisSrid()
                 epsgWKTClip = proj4crs.toWkt()
 
-                QgsMapLayerRegistry.instance().addMapLayer(rasterLayerClipped)
+                #QgsMapLayerRegistry.instance().addMapLayer(rasterLayerClipped)
+                QgsProject.instance().addMapLayer(rasterLayerClipped)
                 #pass
 
                 self.dlg.statusBarProcessing.setValue(75)
@@ -527,7 +548,7 @@ class PACropRows:
                 temporalVectorLayerCrsString=temporalVectorLayerCrs.authid()
                 temporalVectorLayerEPSGInt=int(temporalVectorLayerCrsString[5:])
 
-                QgsMessageLog.logMessage(str(temporalVectorLayerEPSGInt), tag="CropRows Generator", level=QgsMessageLog.INFO)
+                QgsMessageLog.logMessage(str(temporalVectorLayerEPSGInt))
                 maskVectorLayerExported = QgsVectorLayer(outputFileMaskPath,ouputFilenameVectorMask[:-4],"ogr")
                 crs = maskVectorLayerExported.crs()
                 crs.createFromId(temporalVectorLayerEPSGInt)
@@ -536,7 +557,8 @@ class PACropRows:
 
                 styleBoundary = os.path.join((os.path.dirname(os.path.abspath(__file__))),'styles', 'croprows_style_boundary.qml' )
                 maskVectorLayerExported.loadNamedStyle(styleBoundary)
-                QgsMapLayerRegistry.instance().addMapLayer(maskVectorLayerExported)
+                #QgsMapLayerRegistry.instance().addMapLayer(maskVectorLayerExported)
+                QgsProject.instance().addMapLayer(maskVectorLayerExported)
                 
                 #end copy vector mask
 
@@ -575,21 +597,21 @@ class PACropRows:
                 
                 toStep2Msg = QMessageBox.question(None, "Crop Rows processing task start", ("Are you sure that you want to start a <b>Crop Rows</b> processing task ?<br>Keep in mind this process can take a few minutes, even several hours.<br><br>Make sure that <b>Crop Rows - API Server is Running before continue.</b>"),QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
                 if toStep2Msg == QMessageBox.Yes:
-                    QgsMessageLog.logMessage('Run Step 2', tag="CropRows Generator", level=QgsMessageLog.INFO)
+                    QgsMessageLog.logMessage('Run Step 2')
                     self.executeCropRowsProcessingFromAPI()
                     pass
                 else:
                     QMessageBox.information(None,'Message !',"You must be run the processing task by manually way !<br>Just click on the button <b>Processing Task (manual)</b>", QMessageBox.Ok)
                     pass
             else:
-                QgsMessageLog.logMessage('No Mosaic Clip Process Selected', tag="CropRows Generator", level=QgsMessageLog.INFO)
+                QgsMessageLog.logMessage('No Mosaic Clip Process Selected')
                 pass
         else:
-            QgsMessageLog.logMessage('Missing Required Parameters', tag="CropRows Generator", level=QgsMessageLog.INFO)
-            QgsMessageLog.logMessage('strMosaicRasterFileSelected: '+strMosaicRasterFileSelected, tag="CropRows Generator", level=QgsMessageLog.INFO)
-            QgsMessageLog.logMessage('strMaskVectorFileSelected: '+strMaskVectorFileSelected, tag="CropRows Generator", level=QgsMessageLog.INFO)
-            QgsMessageLog.logMessage('seedValue: '+str(seedValue), tag="CropRows Generator", level=QgsMessageLog.INFO)
-            QgsMessageLog.logMessage('flagClipTaskDone: '+str(self.flagClipTaskDone), tag="CropRows Generator", level=QgsMessageLog.INFO)
+            QgsMessageLog.logMessage('Missing Required Parameters')
+            QgsMessageLog.logMessage('strMosaicRasterFileSelected: '+strMosaicRasterFileSelected)
+            QgsMessageLog.logMessage('strMaskVectorFileSelected: '+strMaskVectorFileSelected)
+            QgsMessageLog.logMessage('seedValue: '+str(seedValue))
+            QgsMessageLog.logMessage('flagClipTaskDone: '+str(self.flagClipTaskDone))
             QMessageBox.critical(None,'Error!',"Missing Required Parameter !", QMessageBox.Ok)
     pass
 
@@ -601,7 +623,7 @@ class PACropRows:
         """Execute Crop Rows STEP 2"""
         flagApiServerIsRunning = self.url_ok(self.dlg.inputProcessingApiURL.text()+'/imlive')
         #check is api server is running
-        QgsMessageLog.logMessage('API Server running: '+str(flagApiServerIsRunning), tag="CropRows Generator", level=QgsMessageLog.INFO)
+        QgsMessageLog.logMessage('API Server running: '+str(flagApiServerIsRunning))
         if flagApiServerIsRunning==False:
             QMessageBox.critical(None,'Message !',"<b>Crop Rows API Server is NOT running !</b><br>Check Configuration TAB", QMessageBox.Ok)
             pass
@@ -624,7 +646,7 @@ class PACropRows:
             urlp = urlparse.urljoin(self.dlg.inputProcessingApiURL.text(),strNewFile)
             self.dlg.webViewProcessingStatus.load( QUrl(urlp))
             self.dlg.statusBarProcessing2.setValue(55)
-            QgsMessageLog.logMessage('Crop Rows Generation processing from API Running', tag="CropRows Generator", level=QgsMessageLog.INFO)
+            QgsMessageLog.logMessage('Crop Rows Generation processing from API Running')
 
     
     #def load_progress(self, load):
@@ -636,17 +658,17 @@ class PACropRows:
 
     def on_webViewProcessingStatus_loadFinished(self):
         """Task done"""
-        QgsMessageLog.logMessage('Load results', tag="CropRows Generator", level=QgsMessageLog.INFO)
+        QgsMessageLog.logMessage('Load results')
         self.dlg.statusBarProcessing2.setValue(60)
         xmlCropRowsResultsProcessing=(os.path.join(self.dlg.inputSharedFolderPath.text(),'results',('results_'+self.dlg.xmlCoreFile.text())))
         #check if result file exists
-        QgsMessageLog.logMessage('XML Result File: '+str(xmlCropRowsResultsProcessing), tag="CropRows Generator", level=QgsMessageLog.INFO)
-        QgsMessageLog.logMessage('results_'+self.dlg.xmlCoreFile.text(), tag="CropRows Generator", level=QgsMessageLog.INFO)
+        QgsMessageLog.logMessage('XML Result File: '+str(xmlCropRowsResultsProcessing))
+        QgsMessageLog.logMessage('results_'+self.dlg.xmlCoreFile.text())
         self.dlg.statusBarProcessing2.setValue(65)
         
         if(os.path.exists(xmlCropRowsResultsProcessing)==False):
             #print("No croprows result file found !")
-            QgsMessageLog.logMessage('No croprows result file found !', tag="CropRows Generator", level=QgsMessageLog.INFO)
+            QgsMessageLog.logMessage('No croprows result file found !')
         else:
             source = open(xmlCropRowsResultsProcessing,'rb')
             tree = ET.parse(source)
@@ -655,11 +677,11 @@ class PACropRows:
                 resultVectorialFile = filexml.find('result').text
                 resultVectorialBufferFile = filexml.find('buffer').text
                 #print(resultVectorialFile)
-                QgsMessageLog.logMessage(str(resultVectorialFile), tag="CropRows Generator", level=QgsMessageLog.INFO)
-                QgsMessageLog.logMessage(str(resultVectorialBufferFile), tag="CropRows Generator", level=QgsMessageLog.INFO)
+                QgsMessageLog.logMessage(str(resultVectorialFile))
+                QgsMessageLog.logMessage(str(resultVectorialBufferFile))
                 resultTileFile = filexml.find('tile').text
                 #print(resultTileFile)
-                QgsMessageLog.logMessage(str(resultTileFile), tag="CropRows Generator", level=QgsMessageLog.INFO)
+                QgsMessageLog.logMessage(str(resultTileFile))
                 self.dlg.statusBarProcessing2.setValue(60)
                 #load result into qgis
                 temporalPath = self.dlg.inputSharedFolderPath.text().replace("/", "\\")
@@ -672,13 +694,15 @@ class PACropRows:
                 #style for croprows lines result shapefile
                 styleCropRows = os.path.join((os.path.dirname(os.path.abspath(__file__))),'styles', 'croprows_style_croplines.qml' )
                 maskVectorLayerExported.loadNamedStyle(styleCropRows)
-                QgsMapLayerRegistry.instance().addMapLayer(maskVectorLayerExported)
+                #QgsMapLayerRegistry.instance().addMapLayer(maskVectorLayerExported)
+                QgsProject.instance().addMapLayer(maskVectorLayerExported)
                 self.dlg.statusBarProcessing2.setValue(80)
 
                 #style for buffer croprows lines result shapefile
                 styleCropRowsBuf = os.path.join((os.path.dirname(os.path.abspath(__file__))),'styles', 'croprows_style_buffer.qml' )
                 maskVectorLayerBufferExported.loadNamedStyle(styleCropRowsBuf)
-                QgsMapLayerRegistry.instance().addMapLayer(maskVectorLayerBufferExported)
+                #QgsMapLayerRegistry.instance().addMapLayer(maskVectorLayerBufferExported)
+                QgsProject.instance().addMapLayer(maskVectorLayerBufferExported)
                 self.dlg.statusBarProcessing2.setValue(85)
 
                 outputFileTilePath=os.path.join(temporalPath,"results",resultTileFile)
@@ -687,7 +711,8 @@ class PACropRows:
                 #style for croprows tiles geojson
                 styleTiles = os.path.join((os.path.dirname(os.path.abspath(__file__))),'styles', 'croprows_style_tileindex.qml' )
                 maskVectorLayerTileExported.loadNamedStyle(styleTiles)
-                QgsMapLayerRegistry.instance().addMapLayer(maskVectorLayerTileExported)
+                #QgsMapLayerRegistry.instance().addMapLayer(maskVectorLayerTileExported)
+                QgsProject.instance().addMapLayer(maskVectorLayerTileExported)
 
                 self.dlg.outputfilename.setText(str(outputFileMaskPath))
             self.dlg.statusBarProcessing2.setValue(100)
@@ -702,16 +727,16 @@ class PACropRows:
 
     def displaySeedSelectedRadioOption(self,strName):
         """Seed Selected"""
-        QgsMessageLog.logMessage('Seed Selected', tag="CropRows Generator", level=QgsMessageLog.INFO)
-        QgsMessageLog.logMessage(str(strName), tag="CropRows Generator", level=QgsMessageLog.INFO)
+        QgsMessageLog.logMessage('Seed Selected')
+        QgsMessageLog.logMessage(str(strName))
         self.dlg.labelOutputSeed.setText('Seed Selected: <b>' + strName + '</b>' )
     
     def saveConfigXMLAndReloadPlugin(self):
         """Save config and reload"""
-        QgsMessageLog.logMessage('Reading configuration file', tag="CropRows Generator", level=QgsMessageLog.INFO)
+        QgsMessageLog.logMessage('Reading configuration file')
         
         xmlConfigFile = os.path.join((os.path.dirname(os.path.abspath(__file__))), 'config.xml' )
-        QgsMessageLog.logMessage('Config file:'+xmlConfigFile, tag="CropRows Generator", level=QgsMessageLog.INFO)
+        QgsMessageLog.logMessage('Config file:'+xmlConfigFile)
         
         tree = ET.parse(xmlConfigFile)
         root = tree.getroot() 
@@ -723,7 +748,7 @@ class PACropRows:
             cfg.find('temporal_path').text =  self.dlg.inputSharedFolderPath.text()
         tree.write(xmlConfigFile)
 
-        QgsMessageLog.logMessage('Current Configuration Saved', tag="CropRows Generator", level=QgsMessageLog.INFO)
+        QgsMessageLog.logMessage('Current Configuration Saved')
 
         QMessageBox.information(None,'Configuration Message',"Current Configuration Saved !", QMessageBox.Ok)                  
         self.dlg.close()
@@ -731,13 +756,19 @@ class PACropRows:
         #self.readConfigFileFromXML()
     
     def cancelWizard(self):
-        QgsMessageLog.logMessage('Cancel Wizard', tag="CropRows Generator", level=QgsMessageLog.INFO)
+        QgsMessageLog.logMessage('Cancel Wizard')
         self.dlg.close()
         reloadPlugin('PACropRows')
 
     def reload_plugin(self):
         """Reload Plugin"""
         reloadPlugin('PACropRows')
+    
+    #def run(self):
+    #    self.dlg.show()
+    #    result = self.dlg.exec_()
+    #    if result:
+    #        pass
         
     def run(self):
         """Run method that performs all the real work"""
@@ -747,13 +778,15 @@ class PACropRows:
         #self.dlg.textEdit.clear()
         ## Load layers and add to comboboxes
         #layers = self.iface.legendInterface().layers()
-        layers = QgsMapLayerRegistry.instance().mapLayers().values()
+        #layers = QgsMapLayerRegistry.instance().mapLayers().values()
+        layers = QgsProject.instance().mapLayers().values()
         #Clear combobox
         self.dlg.comboBoxInputVector.clear()
         self.dlg.comboBoxInputRaster.clear()
         #layer_list = []
         for layer in layers:
-            if layer.type() == QgsMapLayer.VectorLayer and (layer.wkbType()==QGis.WKBPolygon or layer.wkbType() == QGis.WKBMultiPolygon):
+            #if layer.type() == QgsMapLayer.VectorLayer and (layer.wkbType()==QGis.WKBPolygon or layer.wkbType() == QGis.WKBMultiPolygon):
+            if layer.type() == QgsMapLayer.VectorLayer and (layer.wkbType()==QgsWkbTypes.Polygon or layer.wkbType() == QgsWkbTypes.MultiPolygon):
                 self.dlg.comboBoxInputVector.addItem(layer.name(), layer)
             if layer.type() == QgsMapLayer.RasterLayer:
                 self.dlg.comboBoxInputRaster.addItem(layer.name(), layer)
@@ -790,9 +823,9 @@ class PACropRows:
         self.dlg.statusBarProcessing.setGeometry(10, 281, 511, 31)
         
         nowTime = time.strftime("%c")
-        QgsMessageLog.logMessage('========================================================', tag="CropRows Generator", level=QgsMessageLog.INFO)
-        QgsMessageLog.logMessage('Crop Rows GUI dialog starts:'+time.strftime('%c'), tag="CropRows Generator", level=QgsMessageLog.INFO)
-        QgsMessageLog.logMessage('========================================================', tag="CropRows Generator", level=QgsMessageLog.INFO)
+        QgsMessageLog.logMessage('========================================================')
+        QgsMessageLog.logMessage('Crop Rows GUI dialog starts:'+time.strftime('%c'))
+        QgsMessageLog.logMessage('========================================================')
         self.readConfigFileFromXML()
         #self.dlg.webViewProcessingStatus.loadProgress.connect(self.load_progress)
         # show the dialog
