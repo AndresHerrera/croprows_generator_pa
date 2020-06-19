@@ -1,4 +1,12 @@
-# croprows_generator_pa
+# croprows_generator_pa (obsolete)
+
+## Please check the new repository
+
+- Crop Rows Generator (CRG) GitHub page (new repository):
+
+https://github.com/AndresHerrera/croprows_generator_pa_v2
+
+## --------------------------------------------------------------------------
 
 **croprows_generator_pa** is the source code of **Crop Rows Generator v1.0 (CRG)** .
 
@@ -16,8 +24,8 @@ CRG is developed in Python and therefore requires Python to be installed on the 
 
 - Crop Rows Generator (CRG) v1.0 website:
 http://54.186.237.120/croprowsgenerator/
-- Crop Rows Generator (CRG) GitHub page:
-https://github.com/AndresHerrera/croprows_generator_pa
+- Crop Rows Generator (CRG) GitHub page (new repository):
+https://github.com/AndresHerrera/croprows_generator_pa_v2
 - Crop Rows Generator (CRG) Youtube Playlist:
 https://www.youtube.com/playlist?list=PL5Uf6W3KZ2JBKwHgeifJJUgeGkOZviSIK
 
